@@ -1,0 +1,465 @@
+<title>Amino Acid Sprint</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow lab-bench column; a draining timer rail on top, the molecule as the hero, answer controls below. */
+:root{
+  --bg:#EEF2F5; --card:#FFFFFF; --ink:#13202B; --muted:#5B6B78; --line:#D3DCE3;
+  --accent:#2B59C3; --accent-ink:#FFFFFF; --soft:#E3EAF8;
+  --good:#1E8A5A; --good-soft:#DDF2E7; --bad:#C2372F; --bad-soft:#F8E1DF; --warn:#C27B12;
+  --atom-n:#2B59C3; --atom-o:#C2372F; --atom-s:#A87A00; --bond:#13202B;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E151C; --card:#16202A; --ink:#E4ECF2; --muted:#93A3B0; --line:#2A3946;
+  --accent:#7FA2FF; --accent-ink:#0E151C; --soft:#1E2B44;
+  --good:#4CC48C; --good-soft:#163428; --bad:#FF7F75; --bad-soft:#3A1E1D; --warn:#F2B04A;
+  --atom-n:#86A8FF; --atom-o:#FF8A80; --atom-s:#F0C64A; --bond:#E4ECF2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E151C; --card:#16202A; --ink:#E4ECF2; --muted:#93A3B0; --line:#2A3946;
+  --accent:#7FA2FF; --accent-ink:#0E151C; --soft:#1E2B44;
+  --good:#4CC48C; --good-soft:#163428; --bad:#FF7F75; --bad-soft:#3A1E1D; --warn:#F2B04A;
+  --atom-n:#86A8FF; --atom-o:#FF8A80; --atom-s:#F0C64A; --bond:#E4ECF2; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;line-height:1.05}
+h2{font-size:1.3rem;font-weight:600}
+.eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700}
+p{margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.muted{color:var(--muted)}
+button,input{font:inherit;color:inherit}
+.btn{appearance:none;border:0;border-radius:10px;padding:12px 22px;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink);font-size:1rem}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible,input:focus-visible,.opt input:focus-visible+span{outline:3px solid var(--accent);outline-offset:3px}
+.btn[disabled]{opacity:.5;cursor:default}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:700;font-size:.9rem}
+input[type=text]{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);font-size:1.1rem}
+input[type=text]:focus{border-color:var(--accent);outline:none}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.row .field{flex:1 1 220px;min-width:0}
+
+/* rules list */
+.parts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.part{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.part b{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-weight:500}
+.part span{font-weight:700;font-size:.95rem;line-height:1.25}
+@media (max-width:560px){.parts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* game */
+.hud{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.clock{font-family:var(--f-mono);font-weight:700;font-size:2rem;font-variant-numeric:tabular-nums;line-height:1}
+.clock.warn{color:var(--warn)} .clock.crit{color:var(--bad)}
+.rail{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.rail i{display:block;height:100%;background:var(--accent);transform-origin:left;transition:background .3s}
+.rail i.warn{background:var(--warn)} .rail i.crit{background:var(--bad)}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dots span{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--line)}
+.dots span.cur{border-color:var(--accent);background:var(--soft)}
+.dots span.done{background:var(--muted);border-color:var(--muted)}
+.dots span.gap{margin-left:7px}
+.mol{display:flex;justify-content:center;align-items:center;min-height:250px;padding:8px 0}
+.mol svg{max-width:100%;max-height:300px;height:auto}
+.prompt{display:flex;flex-direction:column;gap:12px}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;border:0;padding:0;margin:0}
+.opt{position:relative;cursor:pointer}
+.opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt span{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-weight:700;background:var(--bg)}
+.opt span kbd{font-family:var(--f-mono);font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 6px;font-weight:500}
+.opt input:checked+span{border-color:var(--accent);background:var(--soft)}
+@media (max-width:420px){.opts{grid-template-columns:1fr}}
+.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.hint{font-size:.85rem;color:var(--muted)}
+kbd.k{font-family:var(--f-mono);font-size:.78rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px}
+
+/* results */
+.score{display:flex;gap:28px;flex-wrap:wrap;align-items:baseline}
+.score div{display:flex;flex-direction:column}
+.score strong{font-family:var(--f-mono);font-size:2.4rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.me td{background:var(--soft)}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)} .pill.no{background:var(--bad-soft);color:var(--bad)} .pill.skip{background:var(--line);color:var(--muted)}
+.note{font-size:.85rem;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+
+  <section id="start" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="eyebrow">20 standard amino acids at pH 7 · 16 questions · 60 seconds</span>
+      <h1>Amino Acid Sprint</h1>
+      <p class="muted">Each structure is drawn in its charged form at pH 7. Identify it as fast as you can. Spelling counts, capitals don't. Press <kbd class="k">Enter</kbd> to submit, or <kbd class="k">Tab</kbd> to the Next button.</p>
+    </div>
+    <div class="parts">
+      <div class="part"><b>Q1–4</b><span>Type the full name</span></div>
+      <div class="part"><b>Q5–8</b><span>Type the 3-letter code</span></div>
+      <div class="part"><b>Q9–12</b><span>Type the 1-letter code</span></div>
+      <div class="part"><b>Q13–16</b><span>Pick the full name</span></div>
+    </div>
+    <form id="startForm" class="card row">
+      <div class="field"><label for="playerName">Your name for the leaderboard</label>
+        <input type="text" id="playerName" maxlength="32" autocomplete="nickname" required placeholder="e.g. Justin L."></div>
+      <button class="btn" id="startBtn" type="submit">Start the clock</button>
+    </form>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h2>Leaderboard</h2>
+      <div class="lb"></div>
+    </div>
+  </section>
+
+  <section id="game" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="hud">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span class="eyebrow" id="partLabel">Part 1 · Full name</span>
+        <h2 id="qLabel">Question 1 of 16</h2>
+      </div>
+      <span class="clock" id="clock" aria-live="off">1:00</span>
+    </div>
+    <div class="rail"><i id="railFill"></i></div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:16px">
+      <div class="mol" id="mol" role="img" aria-label="Amino acid structure"></div>
+      <form class="prompt" id="answerForm" autocomplete="off">
+        <div class="field" id="textField">
+          <label for="answer" id="answerLabel">Full name</label>
+          <input type="text" id="answer" spellcheck="false" autocapitalize="off" autocorrect="off">
+        </div>
+        <fieldset class="opts" id="opts" hidden></fieldset>
+        <div class="actions">
+          <span class="hint" id="hint">Enter submits · Tab moves to Next</span>
+          <button class="btn" id="nextBtn" type="submit">Next</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="end" hidden style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="eyebrow" id="endEyebrow">Time's up</span>
+      <h1 id="endTitle">Run complete</h1>
+    </div>
+    <div class="card score">
+      <div><span class="eyebrow">Correct</span><strong id="sCorrect">0/16</strong></div>
+      <div><span class="eyebrow">Completed in time</span><strong id="sDone">0/16</strong></div>
+      <div><span class="eyebrow">Time used</span><strong id="sTime">0.0s</strong></div>
+    </div>
+    <p class="note" id="saveNote"></p>
+    <div class="actions"><button class="btn" id="againBtn" type="button">Play again</button></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h2>Leaderboard</h2>
+      <div class="lb"></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h2>Your answers</h2>
+      <div class="tablewrap"><table><thead><tr><th>#</th><th>Asked</th><th>You wrote</th><th>Answer</th><th></th></tr></thead><tbody id="review"></tbody></table></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- Amino acid data ---------- */
+const AA=[
+ {n:"Alanine",t:"Ala",o:"A"},{n:"Arginine",t:"Arg",o:"R"},{n:"Asparagine",t:"Asn",o:"N"},
+ {n:"Aspartic acid",t:"Asp",o:"D",alt:["aspartate"]},{n:"Cysteine",t:"Cys",o:"C"},
+ {n:"Glutamic acid",t:"Glu",o:"E",alt:["glutamate"]},{n:"Glutamine",t:"Gln",o:"Q"},
+ {n:"Glycine",t:"Gly",o:"G"},{n:"Histidine",t:"His",o:"H"},{n:"Isoleucine",t:"Ile",o:"I"},
+ {n:"Leucine",t:"Leu",o:"L"},{n:"Lysine",t:"Lys",o:"K"},{n:"Methionine",t:"Met",o:"M"},
+ {n:"Phenylalanine",t:"Phe",o:"F"},{n:"Proline",t:"Pro",o:"P"},{n:"Serine",t:"Ser",o:"S"},
+ {n:"Threonine",t:"Thr",o:"T"},{n:"Tryptophan",t:"Trp",o:"W"},{n:"Tyrosine",t:"Tyr",o:"Y"},{n:"Valine",t:"Val",o:"V"}];
+
+/* ---------- Tiny skeletal-formula builder ---------- */
+const DIR={U:[0,-1],D:[0,1],UR:[.866,-.5],UL:[-.866,-.5],DR:[.866,.5],DL:[-.866,.5]};
+const OH={el:"O",h:{t:"H",d:[1,0]}}, COO={el:"O",q:{t:"−",d:[1,0]}};
+function at(m,x,y,s){m.a.push(Object.assign({x,y},s||{}));return m.a.length-1}
+function add(m,i,d,s,o){const p=m.a[i],v=DIR[d];const j=at(m,p.x+v[0],p.y+v[1],s);m.b.push([i,j,o||1,-1]);return j}
+function ringOn(m,i,d,n,dbl){
+  const v=DIR[d],p=m.a[i],R=1/(2*Math.sin(Math.PI/n));
+  const v0={x:p.x+v[0],y:p.y+v[1]},c={x:v0.x+v[0]*R,y:v0.y+v[1]*R};
+  const a0=Math.atan2(v0.y-c.y,v0.x-c.x),idx=[];
+  for(let k=0;k<n;k++){const a=a0+k*2*Math.PI/n;idx.push(at(m,c.x+R*Math.cos(a),c.y+R*Math.sin(a)))}
+  const ri=m.r.push(c)-1;m.b.push([i,idx[0],1,-1]);
+  for(let k=0;k<n;k++)m.b.push([idx[k],idx[(k+1)%n],dbl.includes(k)?2:1,ri]);
+  return {idx,c};
+}
+function ringEdge(m,i,j,n,away,dbl){
+  const A=m.a[i],B=m.a[j],mx=(A.x+B.x)/2,my=(A.y+B.y)/2;
+  let px=-(B.y-A.y),py=B.x-A.x;const L=Math.hypot(px,py);px/=L;py/=L;
+  if((away.x-mx)*px+(away.y-my)*py>0){px=-px;py=-py}
+  const ap=1/(2*Math.tan(Math.PI/n)),R=1/(2*Math.sin(Math.PI/n)),c={x:mx+px*ap,y:my+py*ap};
+  const aA=Math.atan2(A.y-c.y,A.x-c.x),aB=Math.atan2(B.y-c.y,B.x-c.x);
+  let st=aB-aA;while(st>Math.PI)st-=2*Math.PI;while(st<-Math.PI)st+=2*Math.PI;
+  const list=[i,j];for(let k=2;k<n;k++){const a=aB+(k-1)*st;list.push(at(m,c.x+R*Math.cos(a),c.y+R*Math.sin(a)))}
+  const ri=m.r.push(c)-1;
+  const ex=m.b.find(b=>(b[0]===i&&b[1]===j)||(b[0]===j&&b[1]===i));
+  if(ex&&dbl.includes(0)){ex[2]=2;ex[3]=ri}
+  for(let k=1;k<n;k++)m.b.push([list[k],list[(k+1)%n],dbl.includes(k)?2:1,ri]);
+  return {idx:list,c};
+}
+function outward(m,i,c){const p=m.a[i],dx=p.x-c.x,dy=p.y-c.y,L=Math.hypot(dx,dy);return [dx/L,dy/L]}
+
+const SIDE={
+ Gly(){},
+ Ala(m,ca){add(m,ca,"U")},
+ Val(m,ca){const b=add(m,ca,"U");add(m,b,"UL");add(m,b,"UR")},
+ Leu(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR");add(m,g,"U");add(m,g,"DR")},
+ Ile(m,ca){const b=add(m,ca,"U");add(m,b,"UL");const g=add(m,b,"UR");add(m,g,"U")},
+ Ser(m,ca){const b=add(m,ca,"U");add(m,b,"UR",OH)},
+ Thr(m,ca){const b=add(m,ca,"U");add(m,b,"UL");add(m,b,"UR",OH)},
+ Cys(m,ca){const b=add(m,ca,"U");add(m,b,"UR",{el:"S",h:{t:"H",d:[1,0]}})},
+ Met(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR"),s=add(m,g,"U",{el:"S"});add(m,s,"UR")},
+ Asp(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UL");add(m,g,"U",{el:"O"},2);add(m,g,"DL",{el:"O",q:{t:"−",d:[-1,0]}})},
+ Asn(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UL");add(m,g,"U",{el:"O"},2);add(m,g,"DL",{el:"N",h:{t:"H₂",d:[-1,0]}})},
+ Glu(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR"),d=add(m,g,"U");add(m,d,"UL",{el:"O"},2);add(m,d,"UR",{el:"O",q:{t:"−",d:[1,0]}})},
+ Gln(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR"),d=add(m,g,"U");add(m,d,"UL",{el:"O"},2);add(m,d,"UR",{el:"N",h:{t:"H₂",d:[1,0]}})},
+ Lys(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR"),d=add(m,g,"U"),e=add(m,d,"UR");add(m,e,"U",{el:"N",h:{t:"H₃⁺",d:[1,0]}})},
+ Arg(m,ca){const b=add(m,ca,"U"),g=add(m,b,"UR"),d=add(m,g,"U"),ne=add(m,d,"UR",{el:"N",h:{t:"H",d:[1,0]}}),cz=add(m,ne,"U");
+   add(m,cz,"UL",{el:"N",h:{t:"H₂",d:[-1,0]}});add(m,cz,"UR",{el:"N",h:{t:"H₂⁺",d:[1,0]}},2)},
+ Phe(m,ca){const b=add(m,ca,"U");ringOn(m,b,"UR",6,[0,2,4])},
+ Tyr(m,ca){const b=add(m,ca,"U"),r=ringOn(m,b,"UR",6,[0,2,4]);add(m,r.idx[3],"UR",OH)},
+ His(m,ca){const b=add(m,ca,"U"),r=ringOn(m,b,"UR",5,[2,4]);
+   Object.assign(m.a[r.idx[1]],{el:"N",h:{t:"H",d:outward(m,r.idx[1],r.c)}});m.a[r.idx[3]].el="N"},
+ Trp(m,ca){const b=add(m,ca,"U"),r=ringOn(m,b,"UR",5,[4]),v=r.idx;
+   Object.assign(m.a[v[3]],{el:"N",h:{t:"H",d:outward(m,v[3],r.c)}});
+   ringEdge(m,v[1],v[2],6,r.c,[0,2,4])},
+};
+
+function build(t){
+  const m={a:[],b:[],r:[]};
+  const ca=at(m,0,0);
+  if(t==="Pro"){
+    const n=add(m,ca,"DL",{el:"N",h:{t:"H₂",d:[0,1]},q:{t:"+",d:[-.8,.6]}}),c=add(m,ca,"DR");
+    add(m,c,"D",{el:"O"},2);add(m,c,"UR",COO);
+    ringEdge(m,ca,n,5,m.a[c],[]);
+  }else{
+    add(m,ca,"DL",{el:"N",h:{t:"H₃",d:[-1,0]},q:{t:"+",d:[0,-1]}});
+    const c=add(m,ca,"DR");add(m,c,"D",{el:"O"},2);add(m,c,"UR",COO);
+    SIDE[t](m,ca);
+  }
+  return m;
+}
+
+const S=40,FS=17;
+function svgFor(t){
+  const m=build(t);
+  const xs=m.a.map(a=>a.x),ys=m.a.map(a=>a.y);
+  const pad=1.05,minX=Math.min(...xs)-pad,maxX=Math.max(...xs)+pad,minY=Math.min(...ys)-.75,maxY=Math.max(...ys)+.75;
+  const W=(maxX-minX)*S,H=(maxY-minY)*S;
+  const X=x=>((x-minX)*S).toFixed(1),Y=y=>((y-minY)*S).toFixed(1);
+  const col=el=>el==="N"?"var(--atom-n)":el==="O"?"var(--atom-o)":el==="S"?"var(--atom-s)":"var(--bond)";
+  let out="";
+  const trim=(i,j)=>{const A=m.a[i],B=m.a[j];let dx=B.x-A.x,dy=B.y-A.y;const L=Math.hypot(dx,dy);dx/=L;dy/=L;
+    const ga=A.el?.3:0,gb=B.el?.3:0;return [A.x+dx*ga,A.y+dy*ga,B.x-dx*gb,B.y-dy*gb,dx,dy]};
+  const line=(x1,y1,x2,y2)=>`<line x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}"/>`;
+  for(const [i,j,o,ri] of m.b){
+    const [x1,y1,x2,y2,dx,dy]=trim(i,j);
+    if(o===1){out+=line(x1,y1,x2,y2);continue}
+    let nx=-dy,ny=dx;
+    if(ri>=0){
+      const c=m.r[ri],mx=(x1+x2)/2,my=(y1+y2)/2;
+      if((c.x-mx)*nx+(c.y-my)*ny<0){nx=-nx;ny=-ny}
+      out+=line(x1,y1,x2,y2);
+      const off=.17,sh=.16;
+      out+=line(x1+nx*off+dx*sh,y1+ny*off+dy*sh,x2+nx*off-dx*sh,y2+ny*off-dy*sh);
+    }else{
+      const off=.075;out+=line(x1+nx*off,y1+ny*off,x2+nx*off,y2+ny*off)+line(x1-nx*off,y1-ny*off,x2-nx*off,y2-ny*off);
+    }
+  }
+  let txt="";
+  const hText=s=>s.replace(/([₂₃])/,(_,d)=>`<tspan dy="4" font-size="12">${d==="₂"?2:3}</tspan>`).replace("⁺",'<tspan dy="-11" font-size="13">+</tspan>');
+  for(const a of m.a){
+    if(!a.el)continue;
+    const c=col(a.el);
+    txt+=`<text x="${X(a.x)}" y="${Y(a.y)}" fill="${c}" text-anchor="middle" dominant-baseline="central">${a.el}</text>`;
+    if(a.h){
+      const [dx,dy]=a.h.d;let hx,hy=a.y,anchor="middle";
+      if(Math.abs(dx)>.8&&Math.abs(dy)<.3){hx=a.x+dx*.3;anchor=dx>0?"start":"end"}
+      else{hx=a.x+dx*.42;hy=a.y+dy*.42}
+      txt+=`<text x="${X(hx)}" y="${Y(hy)}" fill="${c}" text-anchor="${anchor}" dominant-baseline="central">${hText(a.h.t)}</text>`;
+    }
+    if(a.q){const [dx,dy]=a.q.d,L=Math.hypot(dx,dy);
+      txt+=`<text x="${X(a.x+dx/L*.36)}" y="${Y(a.y+dy/L*.36-.12)}" fill="${c}" text-anchor="middle" dominant-baseline="central" font-size="14">${a.q.t}</text>`}
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}" width="${W.toFixed(0)}" height="${H.toFixed(0)}">
+  <g stroke="var(--bond)" stroke-width="2.2" stroke-linecap="round" fill="none">${out}</g>
+  <g font-family="var(--f-body)" font-weight="700" font-size="${FS}">${txt}</g></svg>`;
+}
+
+/* ---------- Game ---------- */
+const PARTS=[
+  {type:"name",label:"Part 1 · Full name",field:"Full name",ph:"e.g. Alanine"},
+  {type:"three",label:"Part 2 · 3-letter code",field:"3-letter abbreviation",ph:"e.g. Ala"},
+  {type:"one",label:"Part 3 · 1-letter code",field:"1-letter abbreviation",ph:"e.g. A"},
+  {type:"mc",label:"Part 4 · Multiple choice",field:"Choose the full name"}];
+const LIMIT=60000;
+const $=id=>document.getElementById(id);
+let Q=[],cur=0,t0=0,tick=null,over=true,finishMs=0;
+
+const norm=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function makeQuestions(){
+  const pool=shuffle(AA).slice(0,16);
+  return pool.map((aa,k)=>{
+    const part=PARTS[Math.floor(k/4)];const q={aa,part,answer:null};
+    if(part.type==="mc")q.options=shuffle([aa,...shuffle(AA.filter(x=>x!==aa)).slice(0,3)]);
+    return q;
+  });
+}
+function isRight(q){
+  if(q.answer==null)return false;const a=norm(q.answer);
+  switch(q.part.type){
+    case"name":case"mc":return a===norm(q.aa.n)||(q.aa.alt||[]).includes(a);
+    case"three":return a===q.aa.t.toLowerCase();
+    case"one":return a===q.aa.o.toLowerCase();
+  }
+}
+function expected(q){return q.part.type==="three"?q.aa.t:q.part.type==="one"?q.aa.o:q.aa.n}
+
+function show(id){for(const s of["start","game","end"])$(s).hidden=s!==id}
+
+function renderDots(){
+  $("dots").innerHTML=Q.map((q,k)=>`<span class="${k<cur?"done":k===cur?"cur":""}${k%4===0&&k?" gap":""}"></span>`).join("");
+}
+function renderQ(){
+  const q=Q[cur];
+  $("partLabel").textContent=q.part.label;
+  $("qLabel").textContent=`Question ${cur+1} of 16`;
+  $("mol").innerHTML=svgFor(q.aa.t);
+  renderDots();
+  if(q.part.type==="mc"){
+    $("textField").hidden=true;$("opts").hidden=false;
+    $("opts").innerHTML=`<legend class="eyebrow" style="grid-column:1/-1;padding:0;margin-bottom:4px">${q.part.field}</legend>`+
+      q.options.map((o,k)=>`<label class="opt"><input type="radio" name="mc" id="mc${k}" value="${o.n}"><span><kbd>${k+1}</kbd>${o.n}</span></label>`).join("");
+    $("hint").textContent="Arrow keys or 1–4 to choose · Enter submits";
+    $("mc0").focus();
+  }else{
+    $("textField").hidden=false;$("opts").hidden=true;
+    $("answerLabel").textContent=q.part.field;
+    const inp=$("answer");inp.value="";inp.placeholder=q.part.ph;inp.maxLength=q.part.type==="one"?1:q.part.type==="three"?3:30;
+    $("hint").textContent="Enter submits · Tab moves to Next";
+    inp.focus();
+  }
+}
+function updateClock(){
+  const left=Math.max(0,LIMIT-(performance.now()-t0));
+  const s=Math.ceil(left/1000);
+  const cls=s<=10?"crit":s<=20?"warn":"";
+  $("clock").textContent=`0:${String(s).padStart(2,"0")}`.replace("0:60","1:00");
+  $("clock").className="clock "+cls;
+  const f=$("railFill");f.style.transform=`scaleX(${left/LIMIT})`;f.className=cls;
+  if(left<=0)finish(true);
+}
+function start(){
+  Q=makeQuestions();cur=0;over=false;
+  show("game");t0=performance.now();renderQ();updateClock();
+  clearInterval(tick);tick=setInterval(updateClock,100);
+}
+function submit(){
+  if(over)return;
+  const q=Q[cur];
+  if(q.part.type==="mc"){const c=document.querySelector('input[name="mc"]:checked');q.answer=c?c.value:""}
+  else q.answer=$("answer").value;
+  cur++;
+  if(cur>=Q.length)finish(false);else renderQ();
+}
+function finish(timedOut){
+  if(over)return;over=true;clearInterval(tick);
+  finishMs=Math.min(LIMIT,performance.now()-t0);
+  const done=Q.filter(q=>q.answer!=null).length,correct=Q.filter(isRight).length;
+  $("endEyebrow").textContent=timedOut?"Time's up":"All 16 answered";
+  $("endTitle").textContent=correct===16?"Perfect run":correct>=12?"Strong run":correct>=8?"Solid start":"Keep drilling";
+  $("sCorrect").textContent=`${correct}/16`;$("sDone").textContent=`${done}/16`;$("sTime").textContent=`${(finishMs/1000).toFixed(1)}s`;
+  const rv=$("review");rv.innerHTML="";
+  Q.forEach((q,k)=>{
+    const tr=document.createElement("tr");
+    const st=q.answer==null?["skip","Not reached"]:isRight(q)?["ok","Correct"]:["no","Wrong"];
+    const asked={name:"Name",three:"3-letter",one:"1-letter",mc:"Choice"}[q.part.type];
+    tr.innerHTML=`<td class="num">${k+1}</td><td>${asked}</td><td></td><td></td><td><span class="pill ${st[0]}">${st[1]}</span></td>`;
+    tr.children[2].textContent=q.answer==null?"—":(q.answer.trim()||"(blank)");
+    tr.children[3].textContent=expected(q)+(q.part.type==="name"||q.part.type==="mc"?"":` (${q.aa.n})`);
+    rv.appendChild(tr);
+  });
+  show("end");$("againBtn").focus();
+  saveRun({name:playerName(),correct,completed:done,timeMs:Math.round(finishMs),at:Date.now()});
+}
+function playerName(){return $("playerName").value.trim().slice(0,32)||"Anonymous"}
+
+$("answerForm").addEventListener("submit",e=>{e.preventDefault();submit()});
+$("opts").addEventListener("keydown",e=>{
+  if(/^[1-4]$/.test(e.key)){const r=$("mc"+(+e.key-1));if(r){r.checked=true;r.focus();e.preventDefault()}}
+  if(e.key==="Enter"){e.preventDefault();submit()}
+});
+$("startForm").addEventListener("submit",e=>{e.preventDefault();
+  try{localStorage.setItem("aa-name",playerName())}catch(_){}
+  start()});
+$("againBtn").addEventListener("click",()=>{show("start");$("startBtn").focus()});
+try{const n=localStorage.getItem("aa-name");if(n)$("playerName").value=n}catch(_){}
+
+/* ---------- Leaderboard ---------- */
+let db=null,uid=null,rows=[],lbState="loading",localMode=false;
+const better=(a,b)=>!b||a.correct>b.correct||(a.correct===b.correct&&(a.completed>b.completed||(a.completed===b.completed&&a.timeMs<b.timeMs)));
+const rank=(a,b)=>b.correct-a.correct||b.completed-a.completed||a.timeMs-b.timeMs;
+
+function renderLB(){
+  for(const el of document.querySelectorAll(".lb")){
+    if(lbState==="loading"&&!rows.length){el.innerHTML='<p class="note">Loading scores…</p>';continue}
+    if(!rows.length){el.innerHTML=`<p class="note">${lbState==="slow"?"Scores can't be reached yet. Your run will still be saved when the connection returns.":"No scores yet. Finish a run to claim first place."}</p>`;continue}
+    const list=rows.slice().sort(rank).slice(0,25);
+    el.innerHTML=`<div class="tablewrap"><table><thead><tr><th>#</th><th>Name</th><th>Correct</th><th>Completed</th><th>Time</th></tr></thead><tbody></tbody></table></div>${localMode?'<p class="note">Scores are saved on this device only.</p>':""}`;
+    const tb=el.querySelector("tbody");
+    list.forEach((r,k)=>{const tr=document.createElement("tr");if(r._me)tr.className="me";
+      tr.innerHTML=`<td class="num">${k+1}</td><td></td><td class="num">${r.correct}/16</td><td class="num">${r.completed}/16</td><td class="num">${(r.timeMs/1000).toFixed(1)}s</td>`;
+      tr.children[1].textContent=r.name;tb.appendChild(tr)});
+  }
+}
+function loadLocal(){localMode=true;try{rows=JSON.parse(localStorage.getItem("aa-board")||"[]")}catch(_){rows=[]}lbState="ready";renderLB()}
+
+async function saveRun(run){
+  const note=$("saveNote");
+  if(db&&uid){
+    const mine=rows.find(r=>r._me);
+    if(!better(run,mine)){note.textContent=`Your best (${mine.correct}/16 in ${(mine.timeMs/1000).toFixed(1)}s) stays on the leaderboard.`;
+      if(mine.name!==run.name){try{await db.collection("scores").doc(uid).update({name:run.name})}catch(_){}}
+      return}
+    note.textContent="Saving to leaderboard…";
+    try{await db.collection("scores").doc(uid).set(run);note.textContent="New personal best saved to the leaderboard."}
+    catch(e){note.textContent="Couldn't save this run to the shared leaderboard"+(e&&e.code==="not_granted"?" because you only have view access.":". Check your connection and play again to retry.")}
+  }else{
+    rows.push(Object.assign({},run,{_me:false}));rows.sort(rank);rows=rows.slice(0,50);
+    try{localStorage.setItem("aa-board",JSON.stringify(rows))}catch(_){}
+    rows.forEach(r=>r._me=false);const hit=rows.find(r=>r.at===run.at);if(hit)hit._me=true;
+    note.textContent="Saved to this device's leaderboard.";renderLB();
+  }
+}
+
+renderLB();
+(async()=>{
+  try{
+    const c=window.claude;if(!c||!c.use){loadLocal();return}
+    const [d,u]=await Promise.all([c.use("db"),c.use("user")]);
+    const id=u?await u.id():null;
+    if(!d||!id){loadLocal();return}
+    db=d;uid=id;
+    const timer=setTimeout(()=>{if(lbState==="loading"){lbState="slow";renderLB()}},10000);
+    db.collection("scores").orderBy("correct","desc").limit(500).onSnapshot(snap=>{
+      if(!snap.metadata.fromCache)clearTimeout(timer);
+      rows=snap.docs.map(s=>Object.assign({},s.data(),{_me:s.id===uid}))
+        .filter(r=>typeof r.correct==="number"&&typeof r.timeMs==="number"&&typeof r.name==="string");
+      lbState="ready";renderLB();
+    },()=>{clearTimeout(timer);if(!rows.length)loadLocal()});
+  }catch(_){loadLocal()}
+})();
+</script>
